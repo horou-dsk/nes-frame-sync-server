@@ -1,0 +1,26 @@
+[package]
+name = "nes-online"
+version = "0.1.0"
+authors = ["Morgana <xly_tk@foxmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "4.0.0-beta.4"
+actix-rt = "2"
+actix-web-actors = "4.0.0-beta.4"
+actix = "0.11"
+actix-http = "3.0.0-beta.5"
+serde_json = "1"
+serde = { version = "1.0.114", features = ["derive"] }
+fern = "0.6"
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"]}
+sqlx = { version = "0.5", features = [ "postgres", "runtime-tokio-rustls", "chrono" ] }
+tokio = {version = "1", features = ["full"]}
+redis = { version = "0.20", features = ["tokio-comp"] }
+rand = "0.7"
+
+[target.'cfg(linux)'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
