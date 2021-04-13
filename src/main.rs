@@ -19,7 +19,7 @@ async fn main() -> std::io::Result<()> {
         let server = server::OnLineServer::new().start();
 
         let cors = Cors::default()
-            .allowed_origin("http://192.168.5.198:3000");
+            .allow_any_origin();
 
         App::new()
             .wrap(Logger::default())

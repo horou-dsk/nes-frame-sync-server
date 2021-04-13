@@ -5,6 +5,7 @@ use actix::prelude::*;
 use actix_web_actors::ws;
 use crate::server::messages::{Connect, Message as ServerMessage, Disconnect};
 use actix_http::ws::{Message, ProtocolError};
+use log::{info};
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -87,7 +88,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OnLineWebSocket {
 
             }
             ws::Message::Binary(bytes) => {
-
+                info!("{:?}", bytes);
+                ctx.binary(bytes);
             }
             ws::Message::Close(reason) => {
                 ctx.close(reason);
