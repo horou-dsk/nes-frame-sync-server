@@ -1,7 +1,10 @@
 use std::process;
-use nes_online::{router, setup_logger};
+use nes_online::{router, setup_logger, server};
 use actix_web::{HttpServer, App};
 use log::{error};
+use actix::Actor;
+use actix_cors::Cors;
+use actix_web::middleware::Logger;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -13,8 +16,15 @@ async fn main() -> std::io::Result<()> {
     }
 
     HttpServer::new(move || {
+        let server = server::OnLineServer::new().start();
+
+        let cors = Cors::default()
+            .allowed_origin("http://192.168.5.198:3000");
+
         App::new()
-            // .wrap(Logger::default())
+            .wrap(Logger::default())
+            .wrap(cors)
+            .data(server.clone())
             .data(actix_web::web::JsonConfig::default().limit(1024 * 1024 * 50))
             .configure(router::router_config)
     })

@@ -14,6 +14,7 @@ pub struct OnLineWebSocket {
     pub id: usize,
     pub hb: Instant,
     pub addr: Addr<server::OnLineServer>,
+    pub room_id: u16,
 }
 
 impl OnLineWebSocket {
@@ -46,6 +47,7 @@ impl Actor for OnLineWebSocket {
         let addr = ctx.address();
         self.addr.send(Connect {
             addr: addr.recipient(),
+            room_id: self.room_id,
         })
             .into_actor(self)
             .then(|res, act, ctx| {

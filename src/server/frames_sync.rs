@@ -2,12 +2,14 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::time::Duration;
 use chrono::Local;
 
+const MS_PER_UPDATE: f64 = 100000000.0 / 6.0;
+
 #[derive(Debug)]
 pub enum FrameMessage {
     Stop,
 }
 
-struct Frames {
+pub struct Frames {
     running: bool,
     tx: Sender<FrameMessage>,
     rx: Option<Receiver<FrameMessage>>

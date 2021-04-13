@@ -1,7 +1,7 @@
 use chrono::Local;
 
 pub mod router;
-mod server;
+pub mod server;
 
 pub fn setup_logger() -> Result<(), fern::InitError> {
     // let colors = ColoredLevelConfig::new().debug(Color::Magenta);

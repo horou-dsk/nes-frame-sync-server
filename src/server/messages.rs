@@ -9,6 +9,7 @@ pub struct Message(pub String);
 #[rtype(usize)]
 pub struct Connect {
     pub addr: Recipient<Message>,
+    pub room_id: u16,
 }
 
 #[derive(Message)]
@@ -16,3 +17,7 @@ pub struct Connect {
 pub struct Disconnect {
     pub id: usize,
 }
+
+#[derive(Message)]
+#[rtype(u16)]
+pub struct CreateRoom(pub(crate) String);
