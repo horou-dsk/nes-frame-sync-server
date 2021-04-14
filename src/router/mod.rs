@@ -4,7 +4,7 @@ mod nes;
 use actix_web::web;
 use serde::{Deserialize, Serialize};
 use crate::router::websocket::ws_index;
-use crate::router::nes::create_room;
+use crate::router::nes::{create_room, join_room};
 
 #[derive(Serialize, Deserialize)]
 struct ResultOk<T> {
@@ -45,5 +45,6 @@ impl ResultJson {
 
 pub fn router_config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/ws").route(web::get().to(ws_index)))
-        .service(create_room);
+        .service(create_room)
+        .service(join_room);
 }

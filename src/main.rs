@@ -15,8 +15,9 @@ async fn main() -> std::io::Result<()> {
         process::exit(1);
     }
 
+    let server = server::OnLineServer::new().start();
+
     HttpServer::new(move || {
-        let server = server::OnLineServer::new().start();
 
         let cors = Cors::default()
             .allow_any_origin();

@@ -7,7 +7,9 @@ use crate::server::frames_sync::Frames;
 pub mod messages;
 mod handler_msg;
 mod frames_sync;
+mod socket_message;
 
+#[derive(Debug)]
 pub struct Room {
     pub act: Vec<usize>,
     pub frames_sync: Frames,
@@ -42,4 +44,8 @@ impl OnLineServer {
             rooms: HashMap::new(),
         }
     }
+
+    // pub fn send_message(&self) {
+    //     self.sessions[&1].do_send(Message::Text("我日".into()));
+    // }
 }

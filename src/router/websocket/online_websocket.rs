@@ -3,9 +3,8 @@ use crate::server;
 use actix::{Actor, ActorContext, AsyncContext, Addr, WrapFuture, ActorFutureExt, StreamHandler, Handler};
 use actix::prelude::*;
 use actix_web_actors::ws;
-use crate::server::messages::{Connect, Message as ServerMessage, Disconnect};
+use crate::server::messages::{Connect, Message as ServerMessage, Disconnect, KeyFrame};
 use actix_http::ws::{Message, ProtocolError};
-use log::{info};
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -88,8 +87,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OnLineWebSocket {
 
             }
             ws::Message::Binary(bytes) => {
-                info!("{:?}", bytes);
-                ctx.binary(bytes);
+                self.addr.do_send(KeyFrame {
+                    room_id: self.room_id,
+                    frame: bytes,
+                })
             }
             ws::Message::Close(reason) => {
                 ctx.close(reason);
@@ -107,6 +108,13 @@ impl Handler<ServerMessage> for OnLineWebSocket {
     type Result = ();
 
     fn handle(&mut self, msg: ServerMessage, ctx: &mut Self::Context) -> Self::Result {
-        ctx.text(msg.0)
+        match msg {
+            ServerMessage::Text(text) => {
+                ctx.text(text)
+            },
+            ServerMessage::Binary(bytes) => {
+                ctx.binary(bytes)
+            }
+        }
     }
 }
