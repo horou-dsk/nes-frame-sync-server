@@ -61,7 +61,7 @@ impl Actor for OnLineWebSocket {
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        self.addr.do_send(Disconnect { id: self.id });
+        self.addr.do_send(Disconnect { id: self.id, room_id: self.room_id });
         Running::Stop
     }
 }
@@ -83,7 +83,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OnLineWebSocket {
             ws::Message::Pong(_) => {
                 self.hb = Instant::now();
             }
-            ws::Message::Text(text) => {
+            ws::Message::Text(_text) => {
 
             }
             ws::Message::Binary(bytes) => {

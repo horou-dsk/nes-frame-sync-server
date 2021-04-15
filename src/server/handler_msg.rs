@@ -3,7 +3,6 @@ use crate::server::messages::{Connect, Disconnect, CreateRoom, KeyFrame, Message
 use crate::server::{OnLineServer, Room};
 use rand::Rng;
 use crate::server::frames_sync::FrameMessage;
-use actix::dev::MessageResponse;
 use crate::server::socket_message::SendParcel;
 use log::{info};
 
@@ -43,6 +42,9 @@ impl Handler<Disconnect> for OnLineServer {
 
     fn handle(&mut self, msg: Disconnect, _: &mut Self::Context) -> Self::Result {
         self.sessions.remove(&msg.id);
+        if let Some(room) = self.rooms.get_mut(&msg.room_id) {
+            room.frames_sync.send(FrameMessage::Stop)
+        }
     }
 }
 
@@ -62,8 +64,9 @@ impl Handler<KeyFrame> for OnLineServer {
     type Result = ();
 
     fn handle(&mut self, msg: KeyFrame, _: &mut Self::Context) -> Self::Result {
-        match self.rooms.get(&msg.room_id) {
+        match self.rooms.get_mut(&msg.room_id) {
             Some(room) => {
+                info!("{:?}", msg.frame.to_vec());
                 room.frames_sync.send(FrameMessage::KeyBuffer(msg.frame))
             }
             None => {}

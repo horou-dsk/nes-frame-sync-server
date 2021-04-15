@@ -21,6 +21,7 @@ pub struct Connect {
 #[rtype(result = "()")]
 pub struct Disconnect {
     pub id: usize,
+    pub room_id: u16,
 }
 
 #[derive(Message)]

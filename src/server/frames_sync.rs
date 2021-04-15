@@ -23,7 +23,7 @@ pub struct Frames {
 
 impl Frames {
     pub fn new() -> Self {
-        let (tx, rx) = tokio::sync::mpsc::channel(32);
+        let (tx, rx) = tokio::sync::mpsc::channel(128);
         Self {
             running: false,
             tx,
@@ -39,14 +39,14 @@ impl Frames {
         let mut rx = match self.rx.take() {
             Some(rx) => rx,
             None => {
-                let (tx, rx) = tokio::sync::mpsc::channel(32);
+                let (tx, rx) = tokio::sync::mpsc::channel(128);
                 self.tx = tx;
                 rx
             }
         };
         tokio::spawn(async move {
             let mut frame_buffer = BytesMut::new();
-            loop {
+            'out: loop {
                 if let Some(msg) = rx.recv().await {
                     match msg {
                         FrameMessage::Stop => {
@@ -54,7 +54,10 @@ impl Frames {
                         },
                         FrameMessage::Frame => {
                             for addr in addrs.iter() {
-                                addr.do_send(Message::Binary(Bytes::from(frame_buffer.clone()))).unwrap();
+                                match addr.do_send(Message::Binary(Bytes::from(frame_buffer.clone()))) {
+                                    Err(_) => break 'out,
+                                    _ => {}
+                                }
                             }
                             frame_buffer.clear();
                         }
@@ -69,19 +72,13 @@ impl Frames {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             let mut next_game_tick = Local::now().timestamp_nanos() as f64;
-            let mut fps = 0;
-            let mut p = Local::now().timestamp_millis();
             loop {
                 next_game_tick += MS_PER_UPDATE;
                 let sleep_time = next_game_tick - Local::now().timestamp_nanos() as f64;
-                let current = Local::now().timestamp_millis();
-                if current - p >= 1000 {
-                    // println!("fps = {}", fps);
-                    fps = 0;
-                    p = current;
+                match tx.send(FrameMessage::Frame).await {
+                    Ok(_) => {}
+                    Err(_) => break
                 }
-                fps += 1;
-                tx.send(FrameMessage::Frame).await.expect("Frame Error");
                 if sleep_time > 0.0 {
                     tokio::time::sleep(Duration::from_nanos(sleep_time as u64)).await;
                 }
@@ -89,10 +86,14 @@ impl Frames {
         });
     }
 
-    pub fn send(&self, msg: FrameMessage) {
-        let tx = self.tx.clone();
-        tokio::spawn(async move {
-            tx.send(msg).await.expect("Send Error");
-        });
+    pub fn send(&mut self, msg: FrameMessage) {
+        if self.running {
+            let tx = self.tx.clone();
+            match msg {
+                FrameMessage::Stop => self.running = false,
+                _ => {}
+            }
+            tx.try_send(msg).expect("Send Error");
+        }
     }
 }
