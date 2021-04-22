@@ -1,13 +1,10 @@
 use tokio::sync::mpsc::{Sender, Receiver};
-use std::time::Duration;
-use chrono::Local;
+use std::time::{Duration, Instant};
 use crate::server::messages::Message;
 use actix::Recipient;
 use bytes::{Bytes, BytesMut, BufMut};
 
-const MS_PER_UPDATE: f64 = 100000000.0 / 6.0;
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FrameMessage {
     Stop,
     KeyBuffer(Bytes),
@@ -49,9 +46,6 @@ impl Frames {
             'out: loop {
                 if let Some(msg) = rx.recv().await {
                     match msg {
-                        FrameMessage::Stop => {
-                            break
-                        },
                         FrameMessage::Frame => {
                             for addr in addrs.iter() {
                                 match addr.do_send(Message::Binary(Bytes::from(frame_buffer.clone()))) {
@@ -60,10 +54,13 @@ impl Frames {
                                 }
                             }
                             frame_buffer.clear();
-                        }
+                        },
                         FrameMessage::KeyBuffer(bytes) => {
                             frame_buffer.put(bytes)
-                        }
+                        },
+                        FrameMessage::Stop => {
+                            break
+                        },
                     }
                 }
             }
@@ -71,16 +68,19 @@ impl Frames {
         });
         let tx = self.tx.clone();
         tokio::spawn(async move {
-            let mut next_game_tick = Local::now().timestamp_nanos() as f64;
+            let sleep_time = Duration::from_secs_f64(1.0 / 60.0);
+            let mut next_game_tick = Duration::from_secs(0);
+            let now = Instant::now();
             loop {
-                next_game_tick += MS_PER_UPDATE;
-                let sleep_time = next_game_tick - Local::now().timestamp_nanos() as f64;
+                next_game_tick += sleep_time;
                 match tx.send(FrameMessage::Frame).await {
-                    Ok(_) => {}
+                    Ok(_) => {
+                        let interval = now.elapsed();
+                        if next_game_tick > interval {
+                            tokio::time::sleep(next_game_tick - interval).await;
+                        }
+                    }
                     Err(_) => break
-                }
-                if sleep_time > 0.0 {
-                    tokio::time::sleep(Duration::from_nanos(sleep_time as u64)).await;
                 }
             }
         });
@@ -88,12 +88,10 @@ impl Frames {
 
     pub fn send(&mut self, msg: FrameMessage) {
         if self.running {
-            let tx = self.tx.clone();
-            match msg {
-                FrameMessage::Stop => self.running = false,
-                _ => {}
+            if FrameMessage::Stop == msg {
+                self.running = false;
             }
-            tx.try_send(msg).expect("Send Error");
+            self.tx.try_send(msg).expect("Send Error");
         }
     }
 }

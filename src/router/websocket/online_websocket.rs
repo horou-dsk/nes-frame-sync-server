@@ -25,7 +25,7 @@ impl OnLineWebSocket {
                 // heartbeat timed out
                 println!("Websocket Client heartbeat failed, disconnecting!");
 
-                // act.addr.do_send(server::Disconnect { id: act.id });
+                act.addr.do_send(Disconnect { id: act.id, room_id: act.room_id });
                 // stop actor
                 ctx.stop();
 

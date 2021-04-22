@@ -29,7 +29,7 @@ async fn main() -> std::io::Result<()> {
             .data(actix_web::web::JsonConfig::default().limit(1024 * 1024 * 50))
             .configure(router::router_config)
     })
-        .bind("0.0.0.0:9233")?
+        .bind("0.0.0.0:22339")?
         .run()
         .await
 }

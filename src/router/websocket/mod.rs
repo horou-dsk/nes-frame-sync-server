@@ -14,7 +14,7 @@ use actix_http::ws::Codec;
 /// do websocket handshake and start `MyWebSocket` actor
 pub async fn ws_index(r: HttpRequest, info: web::Query<HashMap<String, String>>, stream: web::Payload, srv: web::Data<Addr<server::OnLineServer>>) -> Result<HttpResponse, HandshakeError> {
     info!("新连接·····");
-    let room_id = info.0["room"].clone();
+    let room_id = &info.0["room"];
     let mut res = ws::handshake(&r)?;
     Ok(res.streaming(WebsocketContext::with_codec(OnLineWebSocket {
         id: 0,
