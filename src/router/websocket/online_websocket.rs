@@ -1,14 +1,15 @@
-use std::time::{Instant, Duration};
 use crate::server;
-use actix::{Actor, ActorContext, AsyncContext, Addr, WrapFuture, ActorFutureExt, StreamHandler, Handler};
+use crate::server::messages::{Connect, Disconnect, KeyFrame, Message as ServerMessage};
 use actix::prelude::*;
-use actix_web_actors::ws;
-use crate::server::messages::{Connect, Message as ServerMessage, Disconnect, KeyFrame};
+use actix::{
+    Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, Handler, StreamHandler, WrapFuture,
+};
 use actix_http::ws::{Message, ProtocolError};
+use actix_web_actors::ws;
+use std::time::{Duration, Instant};
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
-
 
 pub struct OnLineWebSocket {
     pub id: usize,
@@ -25,7 +26,10 @@ impl OnLineWebSocket {
                 // heartbeat timed out
                 println!("Websocket Client heartbeat failed, disconnecting!");
 
-                act.addr.do_send(Disconnect { id: act.id, room_id: act.room_id });
+                act.addr.do_send(Disconnect {
+                    id: act.id,
+                    room_id: act.room_id,
+                });
                 // stop actor
                 ctx.stop();
 
@@ -45,15 +49,16 @@ impl Actor for OnLineWebSocket {
         self.hb(ctx);
 
         let addr = ctx.address();
-        self.addr.send(Connect {
-            addr: addr.recipient(),
-            room_id: self.room_id,
-        })
+        self.addr
+            .send(Connect {
+                addr: addr.recipient(),
+                room_id: self.room_id,
+            })
             .into_actor(self)
             .then(|res, act, ctx| {
                 match res {
                     Ok(id) => act.id = id,
-                    _ => ctx.stop()
+                    _ => ctx.stop(),
                 }
                 fut::ready(())
             })
@@ -61,7 +66,10 @@ impl Actor for OnLineWebSocket {
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        self.addr.do_send(Disconnect { id: self.id, room_id: self.room_id });
+        self.addr.do_send(Disconnect {
+            id: self.id,
+            room_id: self.room_id,
+        });
         Running::Stop
     }
 }
@@ -83,15 +91,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OnLineWebSocket {
             ws::Message::Pong(_) => {
                 self.hb = Instant::now();
             }
-            ws::Message::Text(_text) => {
-
-            }
-            ws::Message::Binary(bytes) => {
-                self.addr.do_send(KeyFrame {
-                    room_id: self.room_id,
-                    frame: bytes,
-                })
-            }
+            ws::Message::Text(_text) => {}
+            ws::Message::Binary(bytes) => self.addr.do_send(KeyFrame {
+                room_id: self.room_id,
+                frame: bytes,
+            }),
             ws::Message::Close(reason) => {
                 ctx.close(reason);
                 ctx.stop();
@@ -109,12 +113,8 @@ impl Handler<ServerMessage> for OnLineWebSocket {
 
     fn handle(&mut self, msg: ServerMessage, ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            ServerMessage::Text(text) => {
-                ctx.text(text)
-            },
-            ServerMessage::Binary(bytes) => {
-                ctx.binary(bytes)
-            }
+            ServerMessage::Text(text) => ctx.text(text),
+            ServerMessage::Binary(bytes) => ctx.binary(bytes),
         }
     }
 }

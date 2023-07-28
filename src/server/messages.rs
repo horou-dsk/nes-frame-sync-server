@@ -1,13 +1,13 @@
-use actix::{Recipient};
 use actix::prelude::*;
-use bytes::{Bytes};
+use actix::Recipient;
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Message)]
 #[rtype(result = "()")]
 pub enum Message {
     Text(String),
-    Binary(Bytes)
+    Binary(Bytes),
 }
 
 #[derive(Message)]

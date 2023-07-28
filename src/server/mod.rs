@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-use actix::{Recipient, Actor, Context};
-use crate::server::messages::Message;
-use rand::prelude::ThreadRng;
 use crate::server::frames_sync::Frames;
+use crate::server::messages::Message;
+use actix::{Actor, Context, Recipient};
+use rand::prelude::ThreadRng;
+use std::collections::HashMap;
 
-pub mod messages;
-mod handler_msg;
 mod frames_sync;
+mod handler_msg;
+pub mod messages;
 mod socket_message;
 
 #[derive(Debug)]
@@ -29,11 +29,17 @@ impl Room {
 pub struct OnLineServer {
     rng: ThreadRng,
     sessions: HashMap<usize, Recipient<Message>>, // 房间长连接
-    rooms: HashMap<u16, Room>
+    rooms: HashMap<u16, Room>,
 }
 
 impl Actor for OnLineServer {
     type Context = Context<Self>;
+}
+
+impl Default for OnLineServer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OnLineServer {

@@ -1,8 +1,8 @@
-use tokio::sync::mpsc::{Sender, Receiver};
-use std::time::{Duration, Instant};
 use crate::server::messages::Message;
 use actix::Recipient;
-use bytes::{Bytes, BytesMut, BufMut};
+use bytes::{BufMut, Bytes, BytesMut};
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 #[derive(Debug, PartialEq)]
 pub enum FrameMessage {
@@ -15,7 +15,13 @@ pub enum FrameMessage {
 pub struct Frames {
     running: bool,
     tx: Sender<FrameMessage>,
-    rx: Option<Receiver<FrameMessage>>
+    rx: Option<Receiver<FrameMessage>>,
+}
+
+impl Default for Frames {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Frames {
@@ -30,7 +36,7 @@ impl Frames {
 
     pub fn start(&mut self, addrs: Vec<Recipient<Message>>) {
         if self.running {
-            return
+            return;
         }
         self.running = true;
         let mut rx = match self.rx.take() {
@@ -43,28 +49,20 @@ impl Frames {
         };
         tokio::spawn(async move {
             let mut frame_buffer = BytesMut::new();
-            'out: loop {
+            loop {
                 if let Some(msg) = rx.recv().await {
                     match msg {
                         FrameMessage::Frame => {
                             for addr in addrs.iter() {
-                                match addr.do_send(Message::Binary(Bytes::from(frame_buffer.clone()))) {
-                                    Err(_) => break 'out,
-                                    _ => {}
-                                }
+                                addr.do_send(Message::Binary(Bytes::from(frame_buffer.clone())))
                             }
                             frame_buffer.clear();
-                        },
-                        FrameMessage::KeyBuffer(bytes) => {
-                            frame_buffer.put(bytes)
-                        },
-                        FrameMessage::Stop => {
-                            break
-                        },
+                        }
+                        FrameMessage::KeyBuffer(bytes) => frame_buffer.put(bytes),
+                        FrameMessage::Stop => break,
                     }
                 }
             }
-
         });
         let tx = self.tx.clone();
         tokio::spawn(async move {
@@ -80,7 +78,7 @@ impl Frames {
                             tokio::time::sleep(next_game_tick - interval).await;
                         }
                     }
-                    Err(_) => break
+                    Err(_) => break,
                 }
             }
         });

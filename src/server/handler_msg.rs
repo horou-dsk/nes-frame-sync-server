@@ -1,10 +1,12 @@
-use actix::{Handler, Context, Recipient};
-use crate::server::messages::{Connect, Disconnect, CreateRoom, KeyFrame, Message, GetRoomInfo, RoomInfo};
-use crate::server::{OnLineServer, Room};
-use rand::Rng;
 use crate::server::frames_sync::FrameMessage;
+use crate::server::messages::{
+    Connect, CreateRoom, Disconnect, GetRoomInfo, KeyFrame, Message, RoomInfo,
+};
 use crate::server::socket_message::SendParcel;
-use log::{info};
+use crate::server::{OnLineServer, Room};
+use actix::{Context, Handler, Recipient};
+use log::info;
+use rand::Rng;
 
 impl Handler<Connect> for OnLineServer {
     type Result = usize;
@@ -12,25 +14,19 @@ impl Handler<Connect> for OnLineServer {
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let id = self.rng.gen::<u32>() as usize;
         self.sessions.insert(id, msg.addr);
-        match self.rooms.get_mut(&msg.room_id) {
-            Some(room) => {
-                room.act.push(id);
-                if room.act.len() == 2 {
-                    let ready = serde_json::to_string(&SendParcel::GameReady).unwrap();
-                    let mut addrs: Vec<Recipient<Message>> = Vec::new();
-                    for id in &room.act {
-                        match self.sessions.get(id) {
-                            Some(addr) => {
-                                addr.do_send(Message::Text(ready.clone())).unwrap();
-                                addrs.push((*addr).clone())
-                            }
-                            None => {}
-                        }
+        if let Some(room) = self.rooms.get_mut(&msg.room_id) {
+            room.act.push(id);
+            if room.act.len() == 2 {
+                let ready = serde_json::to_string(&SendParcel::GameReady).unwrap();
+                let mut addrs: Vec<Recipient<Message>> = Vec::new();
+                for id in &room.act {
+                    if let Some(addr) = self.sessions.get(id) {
+                        addr.do_send(Message::Text(ready.clone()));
+                        addrs.push((*addr).clone())
                     }
-                    room.frames_sync.start(addrs)
                 }
+                room.frames_sync.start(addrs)
             }
-            None => {}
         }
         info!("{:?}", self.rooms);
         id
@@ -64,12 +60,9 @@ impl Handler<KeyFrame> for OnLineServer {
     type Result = ();
 
     fn handle(&mut self, msg: KeyFrame, _: &mut Self::Context) -> Self::Result {
-        match self.rooms.get_mut(&msg.room_id) {
-            Some(room) => {
-                info!("{:?}", msg.frame.to_vec());
-                room.frames_sync.send(FrameMessage::KeyBuffer(msg.frame))
-            }
-            None => {}
+        if let Some(room) = self.rooms.get_mut(&msg.room_id) {
+            info!("{:?}", msg.frame.to_vec());
+            room.frames_sync.send(FrameMessage::KeyBuffer(msg.frame))
         }
     }
 }
@@ -79,15 +72,10 @@ impl Handler<GetRoomInfo> for OnLineServer {
 
     fn handle(&mut self, msg: GetRoomInfo, _: &mut Self::Context) -> Self::Result {
         info!("{:?}", self.rooms);
-        match self.rooms.get(&msg.0) {
-            Some(room) => {
-                Some(RoomInfo {
-                    room_id: msg.0,
-                    player: room.act.len() as u8 + 1,
-                    game: room.game.clone(),
-                })
-            }
-            None => None
-        }
+        self.rooms.get(&msg.0).map(|room| RoomInfo {
+            room_id: msg.0,
+            player: room.act.len() as u8 + 1,
+            game: room.game.clone(),
+        })
     }
 }
